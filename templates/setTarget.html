@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Report Unsafe Locations</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; }
+    #map { height: 90vh; width: 100%; }
+    #controls {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      background: #f4f4f4;
+      border-bottom: 1px solid #ccc;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      background-color: white;
+      border: none;
+      color: black;
+      padding: 16px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      transition-duration: 0.4s;
+      cursor: pointer;
+    }
+
+    .button1:hover {
+      background-color: #0000FF;
+      color: white;
+    }
+
+    .button2:hover {
+      background-color: #FFFF00;
+      color: white;
+    }
+
+    .button3:hover {
+      background-color: #FF0000;
+      color: white;
+    }
+
+    .button4:hover {
+      background-color: #800080;
+      color: white;
+    }
+
+    .button5:hover {
+      background-color: #808080;
+      color: white;
+    }
+
+    .button6:hover {
+      background-color: #000000;
+      color: white;
+    }
+
+    .selected {
+      background-color: #000000;
+      color: rgb(255, 255, 255);
+      border-color: #000000;
+    }
+
+    #hint {
+      font-size: 13px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <div style="font-weight:600;">Tap map to report:</div>
+    <button data-type="Slippery" id="slippery" class="button button1">Slippery</button>
+    <button data-type="Low Lighting" id="lowlight" class="button button2">Low Lighting</button>
+    <button data-type="Isolated" id="isolated" class="button button3">Isolated</button>
+    <button data-type="Crowded Area" id="crowdedarea" class="button button4">Crowded Area</button>
+    <button data-type="Low Visibility" id="lowvisibility" class="button button5">Low Visibility</button>
+    <button data-type="Others" id="others" class="button button6">Others</button>
+    <div id="hint">(pick one, then click the map)</div>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([0, 0], 2);
+
+    // Base map tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Hazard marker colors
+    const colors = {
+      'Slippery': 'blue',
+      'Low Lighting': 'yellow',
+      'Isolated': 'red',
+      'Crowded Area': 'purple',
+      'Low Visibility': 'gray',
+      'Others': 'black'
+    };
+ 
+    var greenIcon = new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+
+    // Try to zoom to user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        map.setView([latitude, longitude], 16);
+
+        const userMarker = L.marker([latitude, longitude], {
+          icon: greenIcon
+        }).addTo(map);
+        userMarker.bindPopup("Current Location").openPopup();
+      }, err => {
+        console.warn("Could not get current location:", err.message);
+        map.setView([37.7749, -122.4194], 13); // fallback
+      });
+    } else {
+      map.setView([37.7749, -122.4194], 13); // fallback
+      alert("Geolocation not supported by your browser.");
+    }
+    
+    // Icons
+    const icons = {
+      'Slippery': './img/snowflake.png',
+      'Low Lighting': './img/light.png',
+      'Isolated': './img/lonely.png',
+      'Crowded Area': './img/crowded.png',
+      'Low Visibility': './img/visibility.png',
+      'Others': './img/other.png'
+    };
+
+    var leafletIcons ={};
+    for (const type in icons){
+        leafletIcons[type] =L.icon({
+          iconUrl: icons[type],
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32]
+        })
+    };
+
+    var testIcon = L.icon({
+          iconUrl: 'snowflake.png',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32]
+        });
+
+    // Draw marker helper
+    function drawMarker(lat, lng, type, description, timestamp) {
+      const color = colors[type] || 'gray';
+      const prettyDesc = description || 'No description';
+      const prettyTime = timestamp ? `<br><small>${timestamp}</small>` : '';
+
+      L.circleMarker([lat, lng], {
+        radius: 8,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.8
+      })
+      .addTo(map)
+      .bindPopup(`<b>${type}</b><br>${prettyDesc}${prettyTime}`);
+    }
+
+    // Load all previous reports and display them
+    fetch('http://127.0.0.1:5000/reports')
+      .then(res => res.json())
+      .then(data => {
+        console.log("Loaded reports from server:", data);
+        data.forEach(loc => {
+          drawMarker(loc.lat, loc.lng, loc.type, loc.description, loc.timestamp);
+        });
+      })
+      .catch(err => {
+        console.error("Error loading /reports:", err);
+      });
+
+    // Track which hazard type the user picked
+    let selectedType = null;
+    const buttons = document.querySelectorAll('#controls button');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedType = btn.dataset.type;
+        console.log("Selected hazard:", selectedType);
+      });
+    });
+
+    // When user clicks the map, send a new report
+    map.on('click', e => {
+      console.log("Map clicked at:", e.latlng);
+
+      if (!selectedType) {
+        alert('Please select a hazard type first!');
+        return;
+      }
+
+      const description = prompt("Add a short description (optional):") || "";
+      const { lat, lng } = e.latlng;
+
+      console.log("Submitting report:", {
+        lat,
+        lng,
+        type: selectedType,
+        description
+      });
+
+      // Show marker immediately (optimistic UI)
+      drawMarker(lat, lng, selectedType, description, new Date().toISOString());
+
+      // Send to backend
+      fetch('http://127.0.0.1:5000/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: lat,
+          lng: lng,
+          type: selectedType,
+          description: description
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("Server says:", data);
+      })
+      .catch(err => {
+        console.error("Error sending /report:", err);
+        alert("Could not save to server.");
+      });
+    });
+  </script>
+</body>
+</html>
