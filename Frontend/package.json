@@ -1,0 +1,29 @@
+{
+  "name": "wheeliemap",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "scripts": {
+    "dev": "tinacms dev -c \"npx http-server .\"",
+    "build": "tinacms build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsamrithaa/u4uyoga.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/itsamrithaa/u4uyoga/issues"
+  },
+  "homepage": "https://github.com/itsamrithaa/u4uyoga#readme",
+  "dependencies": {
+    "tinacms": "^2.8.1"
+  },
+  "devDependencies": {
+    "@tinacms/cli": "^1.10.1",
+    "http-server": "^14.1.1"
+  }
+}
